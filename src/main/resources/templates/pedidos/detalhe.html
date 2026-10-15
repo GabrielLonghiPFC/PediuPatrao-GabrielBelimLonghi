@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity">
+<head>
+    <title>Detalhe do Pedido</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="/pedidos" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="fw-bold mb-0">Pedido <span class="text-muted" th:text="${pedido.id}"></span></h2>
+    </div>
+
+    <div class="alert alert-success alert-dismissible fade show" th:if="${sucesso}" role="alert">
+        <span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div class="alert alert-danger alert-dismissible fade show" th:if="${erro}" role="alert">
+        <span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-semibold mb-3">Resumo</h5>
+                    <dl class="row mb-0 small">
+                        <dt class="col-5 text-muted">Cliente</dt>
+                        <dd class="col-7" th:text="${nomesClientes[pedido.clienteId]} ?: pedido.clienteId"></dd>
+                        <dt class="col-5 text-muted">Responsável</dt>
+                        <dd class="col-7" th:text="${pedido.responsavelRegistro}"></dd>
+                        <dt class="col-5 text-muted">Entrada</dt>
+                        <dd class="col-7" th:text="${pedido.dataHoraEntrada != null ? #temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm') : '—'}"></dd>
+                        <dt class="col-5 text-muted">Saída</dt>
+                        <dd class="col-7" th:text="${pedido.dataHoraSaida != null ? #temporals.format(pedido.dataHoraSaida, 'dd/MM/yyyy HH:mm') : '—'}"></dd>
+                        <dt class="col-5 text-muted">Resp. saída</dt>
+                        <dd class="col-7" th:text="${pedido.responsavelSaida != null ? pedido.responsavelSaida : '—'}"></dd>
+                        <dt class="col-5 text-muted">Status</dt>
+                        <dd class="col-7">
+                            <span class="badge"
+                                  th:classappend="${pedido.status == 'FINALIZADO' or pedido.status == 'ENTREGUE'} ? 'bg-success' :
+                                                  (${pedido.status == 'CANCELADO'} ? 'bg-danger' :
+                                                  (${pedido.status == 'EM_PREPARACAO' or pedido.status == 'EM_PREPARO'} ? 'bg-warning text-dark' :
+                                                  (${pedido.status == 'PRONTO'} ? 'bg-info text-dark' : 'bg-secondary')))"
+                                  th:text="${#strings.replace(pedido.status, '_', ' ')}">
+                            </span>
+                        </dd>
+                        <dt class="col-5 text-muted">Subtotal</dt>
+                        <dd class="col-7" th:text="${#numbers.formatDecimal(subtotalItens, 1, 'COMMA', 2, 'POINT')}"></dd>
+                        <dt class="col-5 text-muted">Desconto</dt>
+                        <dd class="col-7" th:text="${pedido.descontoPercentual != null ? pedido.descontoPercentual + '%' : '0%'}"></dd>
+                        <dt class="col-5 text-muted fw-semibold">Total</dt>
+                        <dd class="col-7 fw-semibold" th:text="${pedido.valorTotal != null ? #numbers.formatDecimal(pedido.valorTotal, 1, 'COMMA', 2, 'POINT') : '—'}"></dd>
+                    </dl>
+
+                    <div sec:authorize="hasRole('GERENTE')" class="mt-4 pt-3 border-top"
+                         th:if="${!#lists.isEmpty(proximosStatus)}">
+                        <p class="small text-muted mb-2">Avançar status do pedido (gerente).</p>
+                        <form th:action="@{/pedidos/{id}/status(id=${pedido.id})}" method="post" class="row g-2 align-items-end">
+                            <div class="col-8">
+                                <label class="form-label small mb-0">Próximo status</label>
+                                <select name="status" class="form-select form-select-sm" required>
+                                    <option value="" disabled selected>Selecione</option>
+                                    <option th:each="s : ${proximosStatus}" th:value="${s}"
+                                            th:text="${#strings.replace(s, '_', ' ')}"></option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Atualizar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div sec:authorize="hasRole('GERENTE')" class="mt-4 pt-3 border-top"
+                         th:if="${podeAplicarDesconto}">
+                        <p class="small text-muted mb-2">Desconto autorizado (gerente). O total é recalculado no servidor.</p>
+                        <form th:action="@{/pedidos/{id}/desconto(id=${pedido.id})}" method="post" class="row g-2 align-items-end">
+                            <div class="col-7">
+                                <label class="form-label small mb-0">Desconto (%)</label>
+                                <input type="number" name="descontoPercentual" class="form-control form-control-sm"
+                                       min="0" max="100" step="0.01" required
+                                       th:value="${pedido.descontoPercentual != null ? pedido.descontoPercentual : 0}">
+                            </div>
+                            <div class="col-5">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Aplicar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="ps-4">Produto</th>
+                                <th>Qtd.</th>
+                                <th>Preço unit.</th>
+                                <th class="pe-4">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${pedido.itens == null or #lists.isEmpty(pedido.itens)}">
+                                <td colspan="4" class="text-center text-muted py-4">Sem itens.</td>
+                            </tr>
+                            <tr th:each="item : ${pedido.itens}">
+                                <td class="ps-4" th:text="${item.nomeProduto}"></td>
+                                <td th:text="${item.quantidade}"></td>
+                                <td th:text="${item.precoUnitario != null ? #numbers.formatDecimal(item.precoUnitario, 1, 'COMMA', 2, 'POINT') : '—'}"></td>
+                                <td class="pe-4" th:text="${item.subtotal != null ? #numbers.formatDecimal(item.subtotal, 1, 'COMMA', 2, 'POINT') : '—'}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

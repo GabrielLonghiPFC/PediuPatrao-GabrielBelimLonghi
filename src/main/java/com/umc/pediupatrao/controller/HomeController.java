@@ -10,14 +10,16 @@ import com.umc.pediupatrao.service.ClienteService;
 import com.umc.pediupatrao.service.PedidoService;
 import com.umc.pediupatrao.service.ProdutoService;
 import com.umc.pediupatrao.service.UsuarioService;
+import com.umc.pediupatrao.entity.StatusPedido;
+import com.umc.pediupatrao.repository.ClienteRepository;
+import com.umc.pediupatrao.validations.PedidoValidacao;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -37,6 +39,9 @@ public class HomeController {
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private ClienteRepository clienteRepository;
 
     @GetMapping("/login")
     public String login() {
@@ -129,10 +134,91 @@ public class HomeController {
     @GetMapping("/pedidos")
     public String pedidos(Model model) {
         List<Pedido> pedidos = pedidoService.listarPedidos();
+        Map<String, String> nomesClientes = clienteRepository.findAll().stream()
+                .collect(Collectors.toMap(Cliente::getId, Cliente::getNome, (a, b) -> a));
         model.addAttribute("pedidos", pedidos);
+        model.addAttribute("nomesClientes", nomesClientes);
         model.addAttribute("content", "pedidos :: content");
         log.info("Carregando fragmento: pedidos :: content");
         return "layout";
+    }
+
+    @GetMapping("/pedidos/{id}")
+    public String detalhePedido(@PathVariable String id, Model model, RedirectAttributes redirectAttributes) {
+        return pedidoService.buscarPorId(id).map(p -> {
+            Map<String, String> nomesClientes = clienteRepository.findAll().stream()
+                    .collect(Collectors.toMap(Cliente::getId, Cliente::getNome, (a, b) -> a));
+            double subtotalItens = p.getItens() == null ? 0.0
+                    : p.getItens().stream().mapToDouble(i -> i.getSubtotal() != null ? i.getSubtotal() : 0.0).sum();
+            model.addAttribute("pedido", p);
+            model.addAttribute("subtotalItens", subtotalItens);
+            model.addAttribute("nomesClientes", nomesClientes);
+            model.addAttribute("proximosStatus", PedidoValidacao.proximosStatus(p.getStatus()));
+            boolean podeDesconto = !StatusPedido.CANCELADO.equals(p.getStatus())
+                    && !PedidoValidacao.naoPodeDesconto(p.getStatus());
+            model.addAttribute("podeAplicarDesconto", podeDesconto);
+            model.addAttribute("content", "pedidos/detalhe :: content");
+            return "layout";
+        }).orElseGet(() -> {
+            redirectAttributes.addFlashAttribute("erro", "Pedido não encontrado.");
+            return "redirect:/pedidos";
+        });
+    }
+
+    @GetMapping("/pedidos/novo")
+    public String novoPedidoForm(Model model) {
+        model.addAttribute("pedido", new Pedido());
+        model.addAttribute("clientes", clienteService.listarClientes());
+        List<Produto> produtosAtivos = produtoService.listarProdutos().stream()
+                .filter(p -> p.getAtivo() == null || Boolean.TRUE.equals(p.getAtivo()))
+                .toList();
+        model.addAttribute("produtos", produtosAtivos);
+        model.addAttribute("content", "pedidos/form :: content");
+        return "layout";
+    }
+
+    @PostMapping("/pedidos/{id}/status")
+    public String atualizarStatusPedido(@PathVariable String id,
+            @RequestParam String status,
+            RedirectAttributes redirectAttributes) {
+        try {
+            pedidoService.atualizarStatus(id, status);
+            redirectAttributes.addFlashAttribute("sucesso", "Status do pedido atualizado.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
+        return "redirect:/pedidos/" + id;
+    }
+
+    @PostMapping("/pedidos/{id}/desconto")
+    public String aplicarDescontoPedido(@PathVariable String id,
+            @RequestParam
+            Double descontoPercentual,
+            RedirectAttributes redirectAttributes) {
+        try {
+            pedidoService.aplicarDesconto(id, descontoPercentual);
+            redirectAttributes.addFlashAttribute("sucesso", "Desconto aplicado com sucesso!");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
+        return "redirect:/pedidos/" + id;
+    }
+
+    @PostMapping("/pedidos/salvar")
+    public String salvarPedido(@ModelAttribute Pedido pedido, RedirectAttributes redirectAttributes) {
+        if (pedido.getItens() != null) {
+            pedido.setItens(pedido.getItens().stream()
+                    .filter(i -> i.getProdutoId() != null && !i.getProdutoId().isBlank())
+                    .toList());
+        }
+        try {
+            pedidoService.criarPedido(pedido);
+            redirectAttributes.addFlashAttribute("sucesso", "Pedido registrado com sucesso!");
+            return "redirect:/pedidos";
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+            return "redirect:/pedidos/novo";
+        }
     }
 
     // ========================
@@ -142,9 +228,58 @@ public class HomeController {
     public String produtos(Model model) {
         List<Produto> produtos = produtoService.listarProdutos();
         model.addAttribute("produtos", produtos);
+        Produto novoProduto = new Produto();
+        novoProduto.setAtivo(true);
+        model.addAttribute("produto", novoProduto);
         model.addAttribute("content", "produtos/lista :: content");
         log.info("Carregando fragmento: produtos/lista :: content");
         return "layout";
+    }
+
+    @PostMapping("/produtos/salvar")
+    public String salvarProduto(@ModelAttribute Produto produto, RedirectAttributes redirectAttributes) {
+        if (produto.getAtivo() == null) {
+            produto.setAtivo(false);
+        }
+        produtoService.salvar(produto);
+        redirectAttributes.addFlashAttribute("sucesso", "Produto salvo com sucesso!");
+        return "redirect:/produtos";
+    }
+
+    @GetMapping("/produtos/editar/{id}")
+    public String editarProdutoForm(@PathVariable String id, Model model, RedirectAttributes redirectAttributes) {
+        return produtoService.buscarPorId(id).map(p -> {
+            model.addAttribute("produto", p);
+            model.addAttribute("content", "produtos/form :: content");
+            return "layout";
+        }).orElseGet(() -> {
+            redirectAttributes.addFlashAttribute("erro", "Produto não encontrado.");
+            return "redirect:/produtos";
+        });
+    }
+
+    @PostMapping("/produtos/editar/{id}")
+    public String atualizarProduto(@PathVariable String id, @ModelAttribute Produto produto,
+            RedirectAttributes redirectAttributes) {
+        produto.setId(id);
+        if (produto.getAtivo() == null) {
+            produto.setAtivo(false);
+        }
+        try {
+            produtoService.salvar(produto);
+            redirectAttributes.addFlashAttribute("sucesso", "Produto atualizado com sucesso!");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+            return "redirect:/produtos/editar/" + id;
+        }
+        return "redirect:/produtos";
+    }
+
+    @PostMapping("/produtos/excluir/{id}")
+    public String excluirProduto(@PathVariable String id, RedirectAttributes redirectAttributes) {
+        produtoService.excluir(id);
+        redirectAttributes.addFlashAttribute("sucesso", "Produto excluído com sucesso!");
+        return "redirect:/produtos";
     }
 
     // ========================

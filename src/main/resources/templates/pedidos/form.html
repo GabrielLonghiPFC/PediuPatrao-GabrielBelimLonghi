@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Novo Pedido</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="/pedidos" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="fw-bold mb-0">Novo Pedido</h2>
+    </div>
+
+    <div class="alert alert-danger alert-dismissible fade show" th:if="${erro}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form th:action="@{/pedidos/salvar}" th:object="${pedido}" method="post">
+
+                <div class="mb-4" style="max-width: 480px;">
+                    <label for="clienteId" class="form-label fw-medium">Cliente</label>
+                    <select id="clienteId" class="form-select" th:field="*{clienteId}" required>
+                        <option value="" disabled selected>Selecione o cliente</option>
+                        <option th:each="c : ${clientes}"
+                                th:value="${c.id}"
+                                th:text="${c.nome + ' — ' + c.telefone}">
+                        </option>
+                    </select>
+                </div>
+
+                <h5 class="fw-semibold mb-3">Itens do pedido</h5>
+                <p class="text-muted small mb-3">
+                    Preços e total são calculados no servidor com base no cadastro de produtos.
+                </p>
+
+                <div id="itens-container">
+                    <div class="row g-2 align-items-end item-linha mb-2">
+                        <div class="col-md-7">
+                            <label class="form-label">Produto</label>
+                            <select class="form-select produto-select" name="itens[0].produtoId" required>
+                                <option value="" disabled selected>Selecione</option>
+                                <option th:each="p : ${produtos}"
+                                        th:value="${p.id}"
+                                        th:attr="data-preco=${p.preco}"
+                                        th:text="${p.nome + ' — R$ ' + #numbers.formatDecimal(p.preco, 1, 'COMMA', 2, 'POINT')}">
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Quantidade</label>
+                            <input type="number" class="form-control quantidade-input"
+                                   name="itens[0].quantidade" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-danger w-100 btn-remover-item d-none" title="Remover">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btn-add-item">
+                    <i class="bi bi-plus-lg me-1"></i> Adicionar item
+                </button>
+
+                <hr class="my-4">
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Registrar pedido
+                    </button>
+                    <a href="/pedidos" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <template id="tpl-linha-item">
+        <div class="row g-2 align-items-end item-linha mb-2">
+            <div class="col-md-7">
+                <label class="form-label">Produto</label>
+                <select class="form-select produto-select" required>
+                    <option value="" disabled selected>Selecione</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Quantidade</label>
+                <input type="number" class="form-control quantidade-input" min="1" value="1" required>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger w-100 btn-remover-item" title="Remover">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <script th:inline="javascript">
+        (function () {
+            const produtos = /*[[${produtos}]]*/ [];
+            const container = document.getElementById('itens-container');
+            const tpl = document.getElementById('tpl-linha-item');
+            let indice = 1;
+
+            function opcoesProduto(select) {
+                produtos.forEach(function (p) {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.nome + ' — R$ ' + Number(p.preco).toFixed(2).replace('.', ',');
+                    opt.dataset.preco = p.preco;
+                    select.appendChild(opt);
+                });
+            }
+
+            function renumerarNomes() {
+                container.querySelectorAll('.item-linha').forEach(function (linha, idx) {
+                    linha.querySelector('.produto-select').name = 'itens[' + idx + '].produtoId';
+                    linha.querySelector('.quantidade-input').name = 'itens[' + idx + '].quantidade';
+                });
+                indice = container.querySelectorAll('.item-linha').length;
+            }
+
+            function atualizarBotoesRemover() {
+                const linhas = container.querySelectorAll('.item-linha');
+                linhas.forEach(function (linha, idx) {
+                    const btn = linha.querySelector('.btn-remover-item');
+                    btn.classList.toggle('d-none', linhas.length <= 1);
+                });
+            }
+
+            document.getElementById('btn-add-item').addEventListener('click', function () {
+                const clone = tpl.content.cloneNode(true);
+                const linha = clone.querySelector('.item-linha');
+                opcoesProduto(linha.querySelector('.produto-select'));
+                container.appendChild(clone);
+                renumerarNomes();
+                atualizarBotoesRemover();
+            });
+
+            container.addEventListener('click', function (e) {
+                const btn = e.target.closest('.btn-remover-item');
+                if (!btn) return;
+                btn.closest('.item-linha').remove();
+                renumerarNomes();
+                atualizarBotoesRemover();
+            });
+
+            atualizarBotoesRemover();
+        })();
+    </script>
+
+</div>
+
+</body>
+</html>

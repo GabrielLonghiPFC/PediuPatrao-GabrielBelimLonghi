@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity">
 <head>
     <title>Lista de Pedidos</title>
 </head>
@@ -11,6 +11,9 @@
         <h2 class="fw-bold mb-0">
             <i class="bi bi-bag me-2 text-primary"></i>Pedidos
         </h2>
+        <a sec:authorize="hasAnyRole('GERENTE','ATENDENTE')" href="/pedidos/novo" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Novo Pedido
+        </a>
     </div>
 
     <!-- Mensagens de feedback -->
@@ -32,34 +35,39 @@
                 <thead class="table-dark">
                     <tr>
                         <th class="ps-4">ID</th>
-                        <th>Cliente ID</th>
-                        <th>Tipo de Pizza</th>
-                        <th>Sabor</th>
-                        <th>Quantidade</th>
+                        <th>Cliente</th>
+                        <th>Responsável</th>
+                        <th>Entrada</th>
+                        <th>Itens</th>
+                        <th>Total</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- Lista vazia -->
                     <tr th:if="${#lists.isEmpty(pedidos)}">
-                        <td colspan="6" class="text-center text-muted py-5">
+                        <td colspan="7" class="text-center text-muted py-5">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum pedido encontrado.
                         </td>
                     </tr>
                     <!-- Linhas -->
                     <tr th:each="pedido : ${pedidos}">
-                        <td class="ps-4 text-muted" th:text="${pedido.id}"></td>
-                        <td th:text="${pedido.clienteId}"></td>
-                        <td th:text="${pedido.tipoPizza}"></td>
-                        <td th:text="${pedido.sabor}"></td>
-                        <td th:text="${pedido.quantidade}"></td>
+                        <td class="ps-4">
+                            <a th:href="@{/pedidos/{id}(id=${pedido.id})}" class="text-decoration-none" th:text="${pedido.id}"></a>
+                        </td>
+                        <td th:text="${nomesClientes[pedido.clienteId]} ?: pedido.clienteId"></td>
+                        <td th:text="${pedido.responsavelRegistro}"></td>
+                        <td th:text="${pedido.dataHoraEntrada != null ? #temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm') : '—'}"></td>
+                        <td th:text="${pedido.itens != null ? #lists.size(pedido.itens) : 0}"></td>
+                        <td th:text="${pedido.valorTotal != null ? #numbers.formatDecimal(pedido.valorTotal, 1, 'COMMA', 2, 'POINT') : '—'}"></td>
                         <td>
                             <span class="badge"
-                                  th:classappend="${pedido.status == 'ENTREGUE'} ? 'bg-success' :
+                                  th:classappend="${pedido.status == 'ENTREGUE' or pedido.status == 'FINALIZADO'} ? 'bg-success' :
                                                   (${pedido.status == 'CANCELADO'} ? 'bg-danger' :
-                                                  (${pedido.status == 'EM_PREPARO'} ? 'bg-warning text-dark' : 'bg-secondary'))"
-                                  th:text="${pedido.status}">
+                                                  (${pedido.status == 'EM_PREPARO' or pedido.status == 'EM_PREPARACAO'} ? 'bg-warning text-dark' :
+                                                  (${pedido.status == 'PRONTO'} ? 'bg-info text-dark' : 'bg-secondary')))"
+                                  th:text="${#strings.replace(pedido.status, '_', ' ')}">
                             </span>
                         </td>
                     </tr>
