@@ -15,7 +15,12 @@ public class PedidoController {
 
     @PostMapping
     public Pedido criarPedido(@RequestBody Pedido pedido) {
-        return pedidoService.criarPedido(pedido);
+        try {
+            return pedidoService.criarPedido(pedido);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 
     @GetMapping
@@ -23,10 +28,40 @@ public class PedidoController {
         return pedidoService.listarPedidos();
     }
 
+    @GetMapping("/{id}")
+    public Pedido buscarPedido(@PathVariable String id) {
+        return pedidoService.buscarPorId(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+    }
+
     @PutMapping("/{id}/status")
     public Pedido atualizarStatus(@PathVariable String id, @RequestParam String status) {
-        return pedidoService.atualizarStatus(id, status);
+        try {
+            return pedidoService.atualizarStatus(id, status);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
-    
-    
+
+    @PutMapping("/{id}/desconto")
+    public Pedido aplicarDesconto(@PathVariable String id, @RequestParam Double descontoPercentual) {
+        try {
+            return pedidoService.aplicarDesconto(id, descontoPercentual);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public Pedido cancelarPedido(@PathVariable String id, @RequestParam String justificativa) {
+        try {
+            return pedidoService.cancelarPedido(id, justificativa);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+    }
 }

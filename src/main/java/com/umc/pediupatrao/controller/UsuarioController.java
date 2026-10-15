@@ -35,8 +35,12 @@ public class UsuarioController {
     // Endpoint para criar um novo usuário
     @PostMapping
     public ResponseEntity<Usuario> criarUsuario(@RequestBody Usuario usuario) {
-        usuarioService.salvarUsuario(usuario);
-        return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+        try {
+            usuarioService.salvarUsuario(usuario);
+            return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     // Endpoint para atualizar um usuário

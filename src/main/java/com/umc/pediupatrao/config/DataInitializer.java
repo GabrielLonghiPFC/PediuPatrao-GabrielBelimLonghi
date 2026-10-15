@@ -14,18 +14,21 @@ public class DataInitializer {
     CommandLineRunner initDatabase(UsuarioRepository repo) {
         return args -> {
 
-            if (repo.findByUsername("admin").isEmpty()) {
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-                BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-
+            repo.findByUsername("admin").ifPresentOrElse(admin -> {
+                if (admin.getRole() == null || admin.getRole().isBlank()) {
+                    admin.setRole("ADMIN");
+                    repo.save(admin);
+                }
+            }, () -> {
                 Usuario user = new Usuario();
                 user.setUsername("admin");
                 user.setPassword(encoder.encode("teste123"));
-
+                user.setRole("ADMIN");
                 repo.save(user);
+            });
 
-                System.out.println("Usuário admin criado!");
-            }
         };
     }
 }
