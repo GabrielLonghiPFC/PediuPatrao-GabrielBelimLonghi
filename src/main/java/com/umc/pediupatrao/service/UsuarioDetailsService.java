@@ -19,11 +19,17 @@ public class UsuarioDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return usuarioRepository.findByUsername(username)
-                .map(usuario -> User.builder()
-                        .username(usuario.getUsername())
-                        .password(usuario.getPassword())
-                        .roles("USER") // Adicione roles conforme necessário
-                        .build())
+                .map(usuario -> {
+                    String role = usuario.getRole();
+                    if (role == null || role.isBlank()) {
+                        throw new UsernameNotFoundException("Usuário sem perfil definido");
+                    }
+                    return User.builder()
+                            .username(usuario.getUsername())
+                            .password(usuario.getPassword())
+                            .roles(role)
+                            .build();
+                })
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
     }
 }
