@@ -3,6 +3,7 @@ package com.umc.pediupatrao.service;
 import com.umc.pediupatrao.config.ControlePerfil;
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.repository.ClienteRepository;
+import com.umc.pediupatrao.validations.ClienteAuditoria;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -17,9 +18,14 @@ public class ClienteService {
     @Autowired
     private ControlePerfil controlePerfil;
 
+    @Autowired
+    private AuditoriaService auditoriaService;
+
     public Cliente novoCliente(Cliente cliente) {
         controlePerfil.verificar("ATENDENTE");
-        return clienteRepository.save(cliente);
+        Cliente salvo = clienteRepository.save(cliente);
+        ClienteAuditoria.registrar(auditoriaService, null, salvo, true);
+        return salvo;
     }
 
     public List<Cliente> listarClientes() {
@@ -29,7 +35,10 @@ public class ClienteService {
 
     public void excluir(String id) {
         controlePerfil.verificar("ATENDENTE");
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado."));
         clienteRepository.deleteById(id);
+        ClienteAuditoria.registrarExclusao(auditoriaService, cliente);
     }
 
     public Optional<Cliente> buscarPorId(String id) {
@@ -40,18 +49,16 @@ public class ClienteService {
     // Método para salvar um novo cliente ou atualizar um cliente existente
     public Cliente salvar(Cliente cliente) {
         controlePerfil.verificar("ATENDENTE");
-        // Se o cliente não tem ID (novo cliente), salva como novo
         if (cliente.getId() == null) {
-            return clienteRepository.save(cliente);  // Cria um novo cliente
-        } // Se já tem ID (cliente existente), atualiza
-        else {
-            // Verifica se o cliente existe antes de atualizar
-            if (clienteRepository.existsById(cliente.getId())) {
-                return clienteRepository.save(cliente);  // Atualiza o cliente existente
-            } else {
-                throw new IllegalArgumentException("Cliente não encontrado para atualização.");
-            }
+            Cliente salvo = clienteRepository.save(cliente);
+            ClienteAuditoria.registrar(auditoriaService, null, salvo, true);
+            return salvo;
         }
+        Cliente anterior = clienteRepository.findById(cliente.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado para atualização."));
+        Cliente salvo = clienteRepository.save(cliente);
+        ClienteAuditoria.registrar(auditoriaService, anterior, salvo, false);
+        return salvo;
     }
 
 }

@@ -71,6 +71,22 @@ public final class PedidoValidacao {
         }
     }
 
+    // Bloqueia cancelamento após saída, retirada ou finalização (e se já cancelado)
+    public static boolean naoPodeCancelar(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        try {
+            String s = lerStatus(status);
+            return StatusPedido.CANCELADO.equals(s)
+                    || StatusPedido.FINALIZADO.equals(s)
+                    || StatusPedido.SAIU_PARA_ENTREGA.equals(s)
+                    || StatusPedido.RETIRADO.equals(s);
+        } catch (IllegalArgumentException e) {
+            return true;
+        }
+    }
+
     // Bloqueia desconto após saída para entrega, retirada ou finalização
     public static boolean naoPodeDesconto(String status) {
         if (status == null || status.isBlank()) {

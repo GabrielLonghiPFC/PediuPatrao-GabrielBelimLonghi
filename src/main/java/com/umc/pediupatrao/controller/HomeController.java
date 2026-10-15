@@ -6,6 +6,7 @@ import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.entity.Pedido;
 import com.umc.pediupatrao.entity.Produto;
 import com.umc.pediupatrao.entity.Usuario;
+import com.umc.pediupatrao.service.AuditoriaService;
 import com.umc.pediupatrao.service.ClienteService;
 import com.umc.pediupatrao.service.PedidoService;
 import com.umc.pediupatrao.service.ProdutoService;
@@ -42,6 +43,9 @@ public class HomeController {
 
     @Autowired
     private ClienteRepository clienteRepository;
+
+    @Autowired
+    private AuditoriaService auditoriaService;
 
     @GetMapping("/login")
     public String login() {
@@ -129,6 +133,16 @@ public class HomeController {
     }
 
     // ========================
+    // AUDITORIA
+    // ========================
+    @GetMapping("/auditoria")
+    public String auditoria(@RequestParam(defaultValue = "0") int pagina, Model model) {
+        model.addAttribute("paginaAuditoria", auditoriaService.listarRegistros(pagina));
+        model.addAttribute("content", "auditoria/lista :: content");
+        return "layout";
+    }
+
+    // ========================
     // PEDIDOS
     // ========================
     @GetMapping("/pedidos")
@@ -157,6 +171,7 @@ public class HomeController {
             boolean podeDesconto = !StatusPedido.CANCELADO.equals(p.getStatus())
                     && !PedidoValidacao.naoPodeDesconto(p.getStatus());
             model.addAttribute("podeAplicarDesconto", podeDesconto);
+            model.addAttribute("podeCancelar", !PedidoValidacao.naoPodeCancelar(p.getStatus()));
             model.addAttribute("content", "pedidos/detalhe :: content");
             return "layout";
         }).orElseGet(() -> {
@@ -184,6 +199,19 @@ public class HomeController {
         try {
             pedidoService.atualizarStatus(id, status);
             redirectAttributes.addFlashAttribute("sucesso", "Status do pedido atualizado.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
+        return "redirect:/pedidos/" + id;
+    }
+
+    @PostMapping("/pedidos/{id}/cancelar")
+    public String cancelarPedidoWeb(@PathVariable String id,
+            @RequestParam String justificativa,
+            RedirectAttributes redirectAttributes) {
+        try {
+            pedidoService.cancelarPedido(id, justificativa);
+            redirectAttributes.addFlashAttribute("sucesso", "Pedido cancelado.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("erro", e.getMessage());
         }

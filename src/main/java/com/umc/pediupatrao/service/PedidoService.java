@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class PedidoService {
 
+    private static final double DESCONTO_MAXIMO_PERCENTUAL = 20.0;
+
     @Autowired
     private PedidoRepository pedidoRepository;
 
@@ -31,6 +33,9 @@ public class PedidoService {
 
     @Autowired
     private ControlePerfil controlePerfil;
+
+    @Autowired
+    private AuditoriaService auditoriaService;
 
     public Pedido criarPedido(Pedido pedido) {
         controlePerfil.verificar("GERENTE", "ATENDENTE");
@@ -55,7 +60,16 @@ public class PedidoService {
             pedido.setId(UUID.randomUUID().toString());
         }
 
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+        auditoriaService.registrar(
+                "INCLUSAO DE PEDIDO",
+                "PEDIDO",
+                salvo.getId(),
+                "status",
+                "",
+                salvo.getStatus(),
+                null);
+        return salvo;
     }
 
     public List<Pedido> listarPedidos() {
@@ -100,13 +114,22 @@ public class PedidoService {
         }
 
         pedido.setStatus(novoStatus);
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+        auditoriaService.registrar(
+                "MUDANCA DE STATUS DE PEDIDO",
+                "PEDIDO",
+                salvo.getId(),
+                "status",
+                statusAtual,
+                novoStatus,
+                null);
+        return salvo;
     }
 
     public Pedido aplicarDesconto(String id, Double descontoPercentual) {
         controlePerfil.verificar("GERENTE");
-        if (descontoPercentual == null || descontoPercentual < 0 || descontoPercentual > 100) {
-            throw new IllegalArgumentException("Desconto deve estar entre 0 e 100.");
+        if (descontoPercentual == null || descontoPercentual < 0 || descontoPercentual > DESCONTO_MAXIMO_PERCENTUAL) {
+            throw new IllegalArgumentException("Desconto deve estar entre 0 e 20%.");
         }
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
@@ -120,9 +143,53 @@ public class PedidoService {
             throw new IllegalArgumentException("Pedido sem itens.");
         }
         double subtotal = pedido.getItens().stream().mapToDouble(ItemPedido::getSubtotal).sum();
+        Double descontoAnterior = pedido.getDescontoPercentual();
+        Double totalAnterior = pedido.getValorTotal();
         pedido.setDescontoPercentual(descontoPercentual);
         pedido.setValorTotal(calcularTotal(subtotal, descontoPercentual));
-        return pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
+        auditoriaService.registrar(
+                "APLICACAO DE DESCONTO",
+                "PEDIDO",
+                salvo.getId(),
+                "descontoPercentual",
+                descontoAnterior != null ? descontoAnterior.toString() : "0",
+                descontoPercentual.toString(),
+                null);
+        auditoriaService.registrar(
+                "APLICACAO DE DESCONTO",
+                "PEDIDO",
+                salvo.getId(),
+                "valorTotal",
+                totalAnterior != null ? totalAnterior.toString() : "",
+                salvo.getValorTotal().toString(),
+                null);
+        return salvo;
+    }
+
+    public Pedido cancelarPedido(String id, String justificativa) {
+        controlePerfil.verificar("GERENTE");
+        if (justificativa == null || justificativa.isBlank()) {
+            throw new IllegalArgumentException("Informe a justificativa do cancelamento.");
+        }
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+        if (PedidoValidacao.naoPodeCancelar(pedido.getStatus())) {
+            throw new IllegalArgumentException("Não é possível cancelar este pedido.");
+        }
+        String statusAnterior = pedido.getStatus();
+        pedido.setStatus(StatusPedido.CANCELADO);
+        pedido.setJustificativaCancelamento(justificativa.trim());
+        Pedido salvo = pedidoRepository.save(pedido);
+        auditoriaService.registrar(
+                "CANCELAMENTO DE PEDIDO",
+                "PEDIDO",
+                salvo.getId(),
+                "status",
+                statusAnterior,
+                StatusPedido.CANCELADO,
+                justificativa.trim());
+        return salvo;
     }
 
     private List<ItemPedido> montarItens(List<ItemPedido> itensInformados) {

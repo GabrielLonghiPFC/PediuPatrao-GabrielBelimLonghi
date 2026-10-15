@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Auditoria</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-journal-text me-2 text-primary"></i>Auditoria
+        </h2>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0 table-sm">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-3">Data/hora</th>
+                        <th>Usuário</th>
+                        <th>Perfil</th>
+                        <th>Operação</th>
+                        <th>Entidade</th>
+                        <th>ID</th>
+                        <th>Campo</th>
+                        <th>Anterior</th>
+                        <th>Novo</th>
+                        <th class="pe-3">Justificativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${paginaAuditoria.totalElements == 0}">
+                        <td colspan="10" class="text-center text-muted py-5">Nenhum registro de auditoria.</td>
+                    </tr>
+                    <tr th:each="r : ${paginaAuditoria.content}">
+                        <td class="ps-3 text-nowrap"
+                            th:text="${r.dataHora != null ? #temporals.format(r.dataHora, 'dd/MM/yyyy HH:mm') : '—'}"></td>
+                        <td th:text="${r.usuario}"></td>
+                        <td th:text="${r.perfil}"></td>
+                        <td th:text="${r.operacao}"></td>
+                        <td th:text="${r.entidade}"></td>
+                        <td class="text-truncate" style="max-width: 8rem;" th:text="${r.entidadeId}"
+                            th:title="${r.entidadeId}"></td>
+                        <td th:text="${r.campoAlterado}"></td>
+                        <td th:text="${r.valorAnterior != null && !r.valorAnterior.isBlank() ? r.valorAnterior : '—'}"></td>
+                        <td th:text="${r.valorNovo != null && !r.valorNovo.isBlank() ? r.valorNovo : '—'}"></td>
+                        <td class="pe-3" th:text="${r.justificativa != null && !r.justificativa.isBlank() ? r.justificativa : '—'}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2 small"
+             th:if="${paginaAuditoria.totalElements > 0}">
+            <span class="text-muted">
+                Página <strong th:text="${paginaAuditoria.number + 1}"></strong> de
+                <strong th:text="${paginaAuditoria.totalPages}"></strong>
+                (<span th:text="${paginaAuditoria.totalElements}"></span> registro(s))
+            </span>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" th:classappend="${paginaAuditoria.first} ? 'disabled'">
+                        <a class="page-link" th:href="@{/auditoria(pagina=${paginaAuditoria.number - 1})}">Anterior</a>
+                    </li>
+                    <li class="page-item" th:each="i : ${#numbers.sequence(0, paginaAuditoria.totalPages - 1)}"
+                        th:classappend="${i == paginaAuditoria.number} ? 'active'">
+                        <a class="page-link" th:href="@{/auditoria(pagina=${i})}" th:text="${i + 1}"></a>
+                    </li>
+                    <li class="page-item" th:classappend="${paginaAuditoria.last} ? 'disabled'">
+                        <a class="page-link" th:href="@{/auditoria(pagina=${paginaAuditoria.number + 1})}">Próxima</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

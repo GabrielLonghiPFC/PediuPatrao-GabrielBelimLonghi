@@ -54,4 +54,14 @@ public class PedidoController {
                     org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
+
+    @PutMapping("/{id}/cancelar")
+    public Pedido cancelarPedido(@PathVariable String id, @RequestParam String justificativa) {
+        try {
+            return pedidoService.cancelarPedido(id, justificativa);
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, e.getMessage());
+        }
+    }
 }

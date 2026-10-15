@@ -22,6 +22,7 @@ public class Pedido {
     private LocalDateTime dataHoraSaida;
     private String responsavelSaida;
     private String status;
+    private String justificativaCancelamento;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -52,4 +53,9 @@ public class Pedido {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getJustificativaCancelamento() { return justificativaCancelamento; }
+    public void setJustificativaCancelamento(String justificativaCancelamento) {
+        this.justificativaCancelamento = justificativaCancelamento;
+    }
 }

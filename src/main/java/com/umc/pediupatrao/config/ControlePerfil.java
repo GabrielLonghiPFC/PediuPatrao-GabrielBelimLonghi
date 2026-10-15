@@ -24,6 +24,13 @@ public class ControlePerfil {
         return autenticacao().getName();
     }
 
+    public String perfilLogado() {
+        return autenticacao().getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .findFirst()
+                .orElse("");
+    }
+
     private Authentication autenticacao() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
