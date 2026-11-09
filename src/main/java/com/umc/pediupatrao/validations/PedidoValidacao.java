@@ -34,6 +34,18 @@ public final class PedidoValidacao {
         return s;
     }
 
+    // Valores gravados no banco que correspondem ao status (inclusive os antigos)
+    public static List<String> variantesStatus(String status) {
+        String s = lerStatus(status);
+        if (StatusPedido.EM_PREPARACAO.equals(s)) {
+            return List.of(StatusPedido.EM_PREPARACAO, "EM_PREPARO");
+        }
+        if (StatusPedido.FINALIZADO.equals(s)) {
+            return List.of(StatusPedido.FINALIZADO, "ENTREGUE");
+        }
+        return List.of(s);
+    }
+
     // Verifica se a mudança de status segue o fluxo permitido
     public static boolean checarMudancaStatus(String statusAtual, String novoStatus) {
         String atual = lerStatus(statusAtual);

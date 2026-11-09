@@ -64,6 +64,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/auditoria", "/auditoria/**", "/api/auditoria", "/api/auditoria/**")
                                 .hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers("/auditoria", "/auditoria/**", "/api/auditoria", "/api/auditoria/**").denyAll()
+                        .requestMatchers(HttpMethod.GET, "/dashboard", "/api/dashboard", "/api/dashboard/**")
+                                .hasAnyRole("ADMIN", "GERENTE")
+                        .requestMatchers("/dashboard", "/api/dashboard", "/api/dashboard/**").denyAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
