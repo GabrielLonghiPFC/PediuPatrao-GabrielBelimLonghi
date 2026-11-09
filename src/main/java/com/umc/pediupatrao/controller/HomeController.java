@@ -146,11 +146,10 @@ public class HomeController {
     // PEDIDOS
     // ========================
     @GetMapping("/pedidos")
-    public String pedidos(Model model) {
-        List<Pedido> pedidos = pedidoService.listarPedidos();
+    public String pedidos(@RequestParam(defaultValue = "0") int pagina, Model model) {
         Map<String, String> nomesClientes = clienteRepository.findAll().stream()
                 .collect(Collectors.toMap(Cliente::getId, Cliente::getNome, (a, b) -> a));
-        model.addAttribute("pedidos", pedidos);
+        model.addAttribute("paginaPedidos", pedidoService.listarPedidos(pagina));
         model.addAttribute("nomesClientes", nomesClientes);
         model.addAttribute("content", "pedidos :: content");
         log.info("Carregando fragmento: pedidos :: content");
@@ -385,8 +384,11 @@ public class HomeController {
         return "teste";
     }
 
-    @GetMapping("/admin")
-    public String admin() {
-        return "admin";
+    // ========================
+    // DASHBOARD
+    // ========================
+    @GetMapping("/dashboard")
+    public String dashboard() {
+        return "dashboard";
     }
 }
