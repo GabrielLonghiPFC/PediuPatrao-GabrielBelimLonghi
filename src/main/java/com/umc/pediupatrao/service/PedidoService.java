@@ -11,16 +11,22 @@ import com.umc.pediupatrao.repository.PedidoRepository;
 import com.umc.pediupatrao.repository.ProdutoRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
 public class PedidoService {
 
     private static final double DESCONTO_MAXIMO_PERCENTUAL = 20.0;
+    public static final int PEDIDOS_POR_PAGINA = 10;
 
     @Autowired
     private PedidoRepository pedidoRepository;
@@ -74,7 +80,27 @@ public class PedidoService {
 
     public List<Pedido> listarPedidos() {
         controlePerfil.verificar("ADMIN", "GERENTE", "ATENDENTE");
-        return pedidoRepository.findAll();
+        return pedidoRepository.findAll(Sort.by(Sort.Direction.DESC, "dataHoraEntrada")).stream()
+                .sorted(Comparator.comparing((Pedido p) -> !emAberto(p)))
+                .toList();
+    }
+
+    public Page<Pedido> listarPedidos(int pagina) {
+        List<Pedido> pedidos = listarPedidos();
+        int totalPaginas = Math.max(1, (int) Math.ceil((double) pedidos.size() / PEDIDOS_POR_PAGINA));
+        pagina = Math.min(Math.max(pagina, 0), totalPaginas - 1);
+        int inicio = pagina * PEDIDOS_POR_PAGINA;
+        int fim = Math.min(inicio + PEDIDOS_POR_PAGINA, pedidos.size());
+        return new PageImpl<>(pedidos.subList(inicio, fim), PageRequest.of(pagina, PEDIDOS_POR_PAGINA), pedidos.size());
+    }
+
+    // Pedido ainda não finalizado nem cancelado
+    private boolean emAberto(Pedido pedido) {
+        if (pedido.getStatus() == null || pedido.getStatus().isBlank()) {
+            return true;
+        }
+        String status = PedidoValidacao.lerStatus(pedido.getStatus());
+        return !StatusPedido.FINALIZADO.equals(status) && !StatusPedido.CANCELADO.equals(status);
     }
 
     public Optional<Pedido> buscarPorId(String id) {
